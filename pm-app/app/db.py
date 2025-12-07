@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from typing import Generator
+import os
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -11,10 +12,81 @@ _engine: Engine | None = None
 _SessionLocal: sessionmaker | None = None
 
 
+def _get_cloud_sql_connector():
+    """
+    Create a Cloud SQL Python Connector for secure connections.
+    Returns None if not using Cloud SQL connection name.
+    """
+    connection_name = os.getenv('DB_CONNECTION_NAME')
+    if not connection_name:
+        return None
+    
+    try:
+        from google.cloud.sql.connector import Connector
+        return Connector()
+    except ImportError:
+        return None
+
+
+def _create_cloud_sql_engine(config) -> Engine | None:
+    """
+    Create engine using Cloud SQL Python Connector (recommended for Cloud Run).
+    Returns None if Cloud SQL connection is not configured.
+    """
+    connection_name = os.getenv('DB_CONNECTION_NAME')
+    db_user = os.getenv('DB_USER')
+    db_password = os.getenv('DB_PASSWORD')
+    db_name = os.getenv('DB_NAME', 'pm_database')
+    
+    if not all([connection_name, db_user, db_password]):
+        return None
+    
+    try:
+        from google.cloud.sql.connector import Connector
+        import pg8000
+        
+        connector = Connector()
+        
+        def getconn():
+            return connector.connect(
+                connection_name,
+                "pg8000",
+                user=db_user,
+                password=db_password,
+                db=db_name,
+            )
+        
+        engine = create_engine(
+            "postgresql+pg8000://",
+            creator=getconn,
+            echo=config.database.echo,
+            pool_size=config.database.pool_size,
+            max_overflow=config.database.max_overflow,
+            pool_pre_ping=True,
+        )
+        
+        return engine
+    except ImportError:
+        # Fall back to URL-based connection if connector not available
+        return None
+    except Exception:
+        return None
+
+
 def init_db(database_url: str | None = None, **engine_kwargs) -> None:
     global _engine, _SessionLocal
     
     config = load_config()
+    
+    # Try Cloud SQL Python Connector first (best for Cloud Run)
+    if not database_url and os.getenv('DB_CONNECTION_NAME'):
+        cloud_engine = _create_cloud_sql_engine(config)
+        if cloud_engine:
+            _engine = cloud_engine
+            _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
+            return
+    
+    # Fall back to URL-based connection
     db_url = database_url or config.database.url
     
     engine_options = {
