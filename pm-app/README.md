@@ -1009,13 +1009,3 @@ DB_POOL_SIZE=10
 DB_MAX_OVERFLOW=20
 DB_POOL_TIMEOUT=30
 ```
-
-## License
-
-MIT
-
-## Project Information
-
-**Project**: AEGIS Predictive Maintenance Copilot  
-**Team**: A25-CS046  
-**Use Case**: AC-02
