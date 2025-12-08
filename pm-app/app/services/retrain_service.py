@@ -1,18 +1,69 @@
 import logging
 import os
+import io  # Added for GCS byte stream
 from datetime import datetime, timezone
 from typing import Literal
 import numpy as np
 import pandas as pd
 import joblib
 import xgboost as xgb
-from sqlalchemy import and_
+from sqlalchemy import and_, text
 from app.db import get_db
 from app.models import Telemetry, RetrainPointer, ModelArtifact
 from app.config import load_config
 from app.services.classification_service import FEATURE_COLUMNS, aggregate_features_from_telemetry
 
 logger = logging.getLogger(__name__)
+
+def load_encoder(config):
+    """
+    Helper function to load the encoder from GCS or Local storage.
+    """
+    filename = 'encoder_engine_type.joblib'
+    
+    # 1. GCS Loading
+    if config.model_storage.backend == 'gcs':
+        try:
+            from google.cloud import storage
+            bucket_name = config.model_storage.gcs_bucket
+            if not bucket_name:
+                raise ValueError("GCS_MODEL_BUCKET not set")
+            
+            logger.info(f"Downloading encoder from GCS: gs://{bucket_name}/{filename}")
+            client = storage.Client()
+            bucket = client.bucket(bucket_name)
+            blob = bucket.blob(filename)
+            
+            if not blob.exists():
+                raise FileNotFoundError(f"Encoder not found in GCS: {filename}")
+                
+            blob_bytes = blob.download_as_bytes()
+            return joblib.load(io.BytesIO(blob_bytes))
+            
+        except ImportError:
+            logger.error("google-cloud-storage library missing")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to load encoder from GCS: {e}")
+            raise
+
+    # 2. Local Loading (Fallback)
+    else:
+        local_path = os.path.join(config.model_storage.local_path, filename)
+        if not os.path.exists(local_path):
+             # Fallback check for common deployment locations if default fails
+             base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+             candidates = [
+                 os.path.join(base_dir, 'artifacts', filename),
+                 os.path.join(base_dir, 'pm-app', 'artifacts', filename)
+             ]
+             for path in candidates:
+                 if os.path.exists(path):
+                     local_path = path
+                     break
+        
+        logger.info(f"Loading encoder from local path: {local_path}")
+        return joblib.load(local_path)
 
 
 def retrain_model(
@@ -44,8 +95,6 @@ def retrain_model(
         last_retrain_ts = pointer.last_retrain_ts
         last_retrain_ts_str = last_retrain_ts.isoformat()
         
-        from sqlalchemy import text
-        
         if incremental:
             query = session.query(Telemetry).filter(
                 text("timestamp::timestamptz > :last_ts")
@@ -75,11 +124,13 @@ def retrain_model(
                 units[key] = []
             units[key].append(row)
         
+        # --- FIX: Use the new helper function to load encoder ---
         try:
-            encoder = joblib.load(os.path.join(config.model_storage.local_path, 'encoder_engine_type.joblib'))
-        except FileNotFoundError as e:
+            encoder = load_encoder(config)
+        except Exception as e:
             logger.error(f"Preprocessing artifacts not found: {e}")
-            raise ValueError("Encoder not found. Cannot retrain.")
+            raise ValueError(f"Encoder not found: {e}")
+        # ------------------------------------------------------
         
         X_list = []
         y_list = []
@@ -98,14 +149,13 @@ def retrain_model(
             X_list.append(feature_vector[0])
             y_list.append(label)
         
+        if not X_list:
+             raise ValueError("Not enough data points after filtering (need 5+ records per unit)")
+
         X = np.array(X_list)
         y = np.array(y_list)
         
         logger.info(f"Training dataset: {X.shape[0]} samples, {X.shape[1]} features")
-        
-        # NOTE: XGBoost models were originally trained on unscaled aggregated features.
-        # The scaler.joblib is for LSTM sequences (5 raw features), not for XGBoost (31 aggregated features).
-        # Therefore, we skip scaling for XGBoost retraining to match original training methodology.
         
         if model_type == 'classification':
             model = xgb.XGBClassifier(
@@ -125,14 +175,32 @@ def retrain_model(
         model.fit(X, y)
         
         version = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
-        
-        if config.model_storage.backend == 'local':
-            model_filename = f"{model_name}_{version}.joblib"
+        model_filename = f"{model_name}_{version}.joblib"
+
+        # --- UPDATE: Save Trained Model to GCS or Local ---
+        if config.model_storage.backend == 'gcs':
+            from google.cloud import storage
+            bucket_name = config.model_storage.gcs_bucket
+            
+            # Save to local buffer first
+            buffer = io.BytesIO()
+            joblib.dump(model, buffer)
+            buffer.seek(0)
+            
+            # Upload to GCS
+            client = storage.Client()
+            bucket = client.bucket(bucket_name)
+            blob = bucket.blob(model_filename)
+            blob.upload_from_file(buffer)
+            
+            model_uri = f"gs://{bucket_name}/{model_filename}"
+            logger.info(f"Uploaded retrained model to {model_uri}")
+            
+        else:
             model_path = os.path.join(config.model_storage.local_path, model_filename)
             joblib.dump(model, model_path)
             model_uri = f"file://{model_path}"
-        else:
-            raise NotImplementedError("GCS storage not yet implemented for retraining")
+        # --------------------------------------------------
         
         if model_type == 'classification':
             from sklearn.metrics import accuracy_score, recall_score
