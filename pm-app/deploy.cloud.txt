@@ -1,0 +1,35 @@
+# 1. Run the cloud build command
+gcloud builds submit --tag gcr.io/$PROJECT_ID/pm-copilot-server:v1 .
+
+# 2. Run the cloud run deploy command
+gcloud run deploy pm-copilot-server \
+  --source . \
+  --region $REGION \
+  --memory 2Gi \
+  --cpu 1 \
+  --allow-unauthenticated \
+  --add-cloudsql-instances="$PROJECT_ID:$REGION:$INSTANCE_NAME" \
+  --set-env-vars="DB_USER=$DB_USER" \
+  --set-env-vars="DB_PASSWORD=$DB_PASSWORD" \
+  --set-env-vars="DB_NAME=DB_NAME" \
+  --set-env-vars="DB_CONNECTION_NAME=$PROJECT_ID:$REGION:$INSTANCE_NAME" \
+  --set-env-vars="DB_SOCKET_PATH=/cloudsql" \
+  --set-env-vars="DB_POOL_SIZE=10" \
+  --set-env-vars="DB_MAX_OVERFLOW=20" \
+  --set-env-vars="DB_ECHO=false" \
+  --set-env-vars="MODEL_STORAGE_BACKEND=gcs" \
+  --set-env-vars="GCS_MODEL_BUCKET=$BUCKET_NAME" \
+  --set-env-vars="GEMINI_MODEL_NAME=gemini-2.5-pro" \
+  --set-env-vars="GEMINI_API_URL=https://generativelanguage.googleapis.com/v1beta" \
+  --set-env-vars="GEMINI_TIMEOUT=60" \
+  --set-env-vars="FLASK_DEBUG=0" \
+  --set-env-vars="LOG_LEVEL=INFO" \
+  --set-env-vars="LOG_FORMAT=json" \
+  --set-env-vars="CORS_ORIGINS=$CORS_ORIGINS" \
+  --set-env-vars="GEMINI_API_KEY=$GEMINI_API_KEY" \
+  --set-env-vars="SECRET_KEY=$SECRET_KEY"
+
+# 3. Replace [SERVICE_ACCOUNT_EMAIL] with the email you found above
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:$SERVICE_ACCOUNT_EMAIL" \
+    --role="roles/cloudsql.client"
