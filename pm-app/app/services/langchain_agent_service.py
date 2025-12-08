@@ -10,11 +10,14 @@ import os
 from typing import Any
 from datetime import datetime, timezone
 
+# --- UPDATED IMPORT ---
+# We use SQLChatMessageHistory because it supports SQLAlchemy connection strings
+# (like postgresql+pg8000://) which PostgresChatMessageHistory does not.
+from langchain_community.chat_message_histories import SQLChatMessageHistory
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.memory import ConversationBufferWindowMemory
-from langchain_community.chat_message_histories import PostgresChatMessageHistory
 from langchain.callbacks.base import BaseCallbackHandler
 
 from app.config import load_config
@@ -147,10 +150,12 @@ class MaintenanceAgentService:
         Returns:
             ConversationBufferWindowMemory instance
         """
-        # Use PostgresChatMessageHistory for persistent storage
-        message_history = PostgresChatMessageHistory(
-            connection_string=self.config.database.url,
+        # --- FIX APPLIED HERE ---
+        # Using SQLChatMessageHistory allows us to use the exact same DATABASE_URL
+        # as the main application (including the unix_sock path and pg8000 driver).
+        message_history = SQLChatMessageHistory(
             session_id=session_id,
+            connection_string=self.config.database.url,
             table_name='conversation_history'
         )
         
