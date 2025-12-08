@@ -142,4 +142,4 @@ class ConversationHistory(Base):
     
     id = Column(BigIntegerType, primary_key=True, autoincrement=True)
     session_id = Column(Text, nullable=False)
-    message = Column(JSONType, nullable=False)  # LangChain stores complete message as JSONB
+    message = Column(Text, nullable=False)  # LangChain stores complete message as JSONB
