@@ -109,8 +109,9 @@ Since the foundation of this project is synthetic data, several limitations must
     While the dataset is synthetic, its structure and statistical dynamics were carefully engineered to approximate real industrial sensor data used in predictive maintenance research and production analytics.
 </p>
 
-### Pipeline Architecture Diagram
-<img width="4575" height="2119" alt="Document Systems" src="https://github.com/user-attachments/assets/c78e08da-38db-4c88-ba73-ce2dced19d6e" />
+### AEGIS Data Pipeline Architecture Diagram
+<img width="4575" height="2119" alt="AEGIS Data Pipeline Architecture Diagram" src="https://github.com/user-attachments/assets/c4700c6c-59bd-439c-9bc6-6889b1b5acdf" />
+
 
 ### Experimental Results & Performance Evaluation
 
@@ -216,3 +217,4 @@ Testing & Quality Assurance
 
 ### Author
 Github Organization: [AEGIS - A25-CS046 Capstone Team](https://github.com/A25-CS046)
+
