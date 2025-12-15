@@ -1,5 +1,7 @@
 ﻿﻿![Python](https://img.shields.io/badge/Python-3670A0?s&logo=python&logoColor=ffdd54)
 ![TensorFlow](https://img.shields.io/badge/TensorFlow-%23FF6F00.svg?s&logo=TensorFlow&logoColor=white)
+![LangChain](https://img.shields.io/badge/LangChain-%231C3C3C.svg?&logo=langchain&logoColor=white)
+![Google Gemini](https://img.shields.io/badge/Google%20Gemini-8E75B2?&logo=google%20gemini&logoColor=white)
 ![Maintenance](https://img.shields.io/badge/Maintenance-Yes-green)
 ![Build](https://img.shields.io/badge/Build-Passing-green)
 
@@ -109,8 +111,8 @@ Since the foundation of this project is synthetic data, several limitations must
     While the dataset is synthetic, its structure and statistical dynamics were carefully engineered to approximate real industrial sensor data used in predictive maintenance research and production analytics.
 </p>
 
-### AEGIS Data Pipeline Architecture Diagram
-<img width="4575" height="2119" alt="AEGIS Data Pipeline Architecture Diagram" src="https://github.com/user-attachments/assets/c4700c6c-59bd-439c-9bc6-6889b1b5acdf" />
+### AEGIS Machine Learning Pipeline Architecture Diagram
+<img width="4575" height="2119" alt="AEGIS Machine Learning Pipeline Architecture Diagram" src="https://github.com/user-attachments/assets/4ccbf0ba-2527-49d5-b723-0cdad174e789" />
 
 
 ### Experimental Results & Performance Evaluation
@@ -195,6 +197,9 @@ Testing & Quality Assurance
 - For copilot features, API and complete installation guide please refer to [Predictive Maintenance Copilot Server](https://github.com/A25-CS046/machine-learning/blob/main/pm-app/README.md) documentation
 - For a complete list of libraries and exact versions used in this projects, please refer to `requirements.txt` in the root folder and in the `pm-app/`.
 
+### Model Artifacts
+- Download the model artifacts from this sources: [Click here](https://drive.google.com/drive/folders/1Zhq6HVLqEQkK2w8IH9DVXOdmFZ1EPV9i?usp=drive_link). Ensure to put every model artifact files in the `/artifacts`
+
 ### Contributor
 <div align=center>
 
@@ -217,4 +222,5 @@ Testing & Quality Assurance
 
 ### Author
 Github Organization: [AEGIS - A25-CS046 Capstone Team](https://github.com/A25-CS046)
+
 
